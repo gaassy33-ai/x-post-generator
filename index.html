@@ -177,43 +177,37 @@ const TYPE_CONFIG = {
     label: '🤖 AI副業ログ',
     hint: '例）「ChatGPTで議事録作成→上司に褒められた」「Claudeで副業の提案書を作った」など',
     template: `【AI副業ログ】形式で投稿文を作成してください。
-構成：「やったこと（1行）→ 結果（できれば数字）→ 気づき（1行）」
-末尾に #AI副業 #副業 を含めてください。`,
+構成：「やったこと（1行）→ 結果（できれば数字）→ 気づき（1行）」`,
   },
   invest: {
     label: '📈 投資・NISA情報',
     hint: '例）「NISA積立額を増やした」「個別株で○○した」「最近気になるニュース」など',
     template: `【知らないと損】系の投資・NISA情報として投稿文を作成してください。
-構成：「✅ポイントを2〜3つ箇条書き → 自分の実践コメント1行」
-末尾に #NISA #投資 #資産形成 を含めてください。`,
+構成：「✅ポイントを2〜3つ箇条書き → 自分の実践コメント1行」`,
   },
   poikatsu: {
     label: '💰 ポイ活・節約',
     hint: '例）「ドコモポイ活が改悪」「楽天の改定があった」「○○がお得」など',
     template: `ポイ活・節約情報として投稿文を作成してください。
-構成：「変更内容 → 影響 → 対策または感想」
-末尾に #ポイ活 #節約 を含めてください。`,
+構成：「変更内容 → 影響 → 対策または感想」`,
   },
   arukoto: {
     label: '😅 中間管理職あるある',
     hint: '例）「部下と上司の板挟みで○○した」「会議で○○だった」など日常のエピソード',
     template: `中間管理職のあるある・共感ネタとして投稿文を作成してください。
-構成：共感を呼ぶ短いエピソード → 「…わかる人いる？😅」などの問いかけ
-末尾に #中間管理職 #会社員あるある を含めてください。`,
+構成：共感を呼ぶ短いエピソード → 「…わかる人いる？😅」などの問いかけ`,
   },
   monthly: {
     label: '📊 月次報告',
     hint: '例）「NISAが○○万、副業収入○万、今月の気づき」など数字を入れてください',
     template: `月次の資産・副業報告として投稿文を作成してください。
-構成：「📈NISA評価額・💼副業収入・💡今月の気づき → 来月の目標」
-末尾に #資産形成 #副業収入 を含めてください。`,
+構成：「📈NISA評価額・💼副業収入・💡今月の気づき → 来月の目標」`,
   },
   quote: {
     label: '🔗 引用コメント',
     hint: '例）「○○というニュースを見た（記事の概要）」を入力してください',
     template: `ニュース・時事ネタへの引用コメントとして投稿文を作成してください。
-構成：「ニュースへの反応 → 副業・投資・AI視点での自分の解釈や気づき」
-末尾にテーマに合うハッシュタグを2〜3個つけてください。`,
+構成：「ニュースへの反応 → 副業・投資・AI視点での自分の解釈や気づき」`,
   },
 };
 
@@ -332,7 +326,7 @@ function buildPrompt(cfg, neta) {
 【固定設定（変更不可）】
 ・発信テーマ：${FIXED_CONFIG.theme}
 ・トーン：${FIXED_CONFIG.tone}
-・文字数：必ず${FIXED_CONFIG.maxChars}字以内（ハッシュタグ含む）
+・ハッシュタグ：全パターン禁止（一切付けないこと）
 
 【投稿タイプ・作成指示】
 ${cfg.template}
@@ -341,12 +335,28 @@ ${cfg.template}
 ${neta}
 
 【出力ルール】
-・投稿文を3パターン作成してください
-・各パターンを「---」で区切ってください
-・各パターンの先頭に「パターンA」「パターンB」「パターンC」と記載してください
-・説明文・前置き・後書きは一切不要、投稿文のみ出力してください
-・絵文字を効果的に使用してください
-・必ず${FIXED_CONFIG.maxChars}字以内に収めてください（超過厳禁）`;
+以下の3パターンを作成し、「---」で区切って出力してください。説明文・前置き・後書きは一切不要、投稿文のみ出力してください。
+
+パターンA（140字以内）
+・必ず${FIXED_CONFIG.maxChars}字以内に収めること（超過厳禁）
+・絵文字を効果的に使用
+・テンポよく読めるシンプルな構成
+
+---
+
+パターンB（140字以内）
+・必ず${FIXED_CONFIG.maxChars}字以内に収めること（超過厳禁）
+・パターンAとは切り口・表現を変えた別バージョン
+・絵文字を効果的に使用
+
+---
+
+パターンC（文字数制限なし・インサイト型）
+・文字数制限なし（300〜500字程度が目安）
+・ネタの内容を深く掘り下げ、読者が「なるほど」「自分ごとだ」と感じるような独自の考察・視点を展開する
+・結論だけでなく「なぜそう思うか」「何が本質か」まで言語化する
+・読者に深く考えさせるインサイトを与えることが目的
+・絵文字は控えめに（文章の重みを保つため）`;
 }
 
 async function callClaudeAPI(apiKey, prompt) {
@@ -360,7 +370,7 @@ async function callClaudeAPI(apiKey, prompt) {
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -383,31 +393,53 @@ function displayResults(text) {
   container.innerHTML = '';
 
   patterns.forEach((pattern, i) => {
-    // 「パターンX」ラベルを取り除いて本文だけ抽出
-    const body = pattern.replace(/^パターン[A-C]\n?/u, '').trim();
+    // 「パターンX（...）」「パターンX」ラベルを取り除いて本文だけ抽出
+    const body = pattern.replace(/^パターン[A-C]（[^）]*）\n?/u, '').replace(/^パターン[A-C]\n?/u, '').trim();
     const charCount = body.length;
-    const isOver = charCount > FIXED_CONFIG.maxChars;
-
+    const isInsight = i === 2; // パターンC＝インサイト型（文字数制限なし）
+    const isOver = !isInsight && charCount > FIXED_CONFIG.maxChars;
     const label = ['A', 'B', 'C'][i] || String(i + 1);
 
     const card = document.createElement('div');
     card.className = 'result-box rounded-xl p-4 fade-in';
-    card.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <span class="tag">パターン ${label}</span>
-        <span class="char-count ${isOver ? 'over' : charCount > 120 ? 'near' : 'ok'}">${charCount} / ${FIXED_CONFIG.maxChars}字</span>
-      </div>
-      <p class="text-sm leading-relaxed whitespace-pre-wrap mb-3 select-all" style="color:#dde3f0;">${escapeHtml(body)}</p>
-      <button class="copy-btn w-full py-2.5 rounded-lg text-xs font-medium text-white flex items-center justify-center gap-1.5 transition-all"
-        style="background:${isOver ? '#7f1d1d' : '#1e3a5f'}; border:1px solid ${isOver ? '#991b1b' : '#2563eb'};"
-        data-text="${escapeAttr(body)}">
-        ${isOver
-          ? '<span>⚠️ 140字超過（要編集）</span>'
-          : `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-           <span>コピーする</span>`
-        }
-      </button>
-    `;
+
+    if (isInsight) {
+      // パターンC専用スタイル（紫系・インサイト型）
+      card.style.borderColor = '#4a3f6b';
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="tag" style="background:#2d1f4a;color:#b39dff;">パターン ${label}</span>
+            <span style="font-size:0.65rem;color:#9c7fe8;background:#1e1530;padding:0.15rem 0.5rem;border-radius:9999px;">💡 インサイト型</span>
+          </div>
+          <span class="char-count ok">${charCount} 字</span>
+        </div>
+        <p class="text-sm leading-relaxed whitespace-pre-wrap mb-3 select-all" style="color:#dde3f0;line-height:1.8;">${escapeHtml(body)}</p>
+        <button class="copy-btn w-full py-2.5 rounded-lg text-xs font-medium text-white flex items-center justify-center gap-1.5 transition-all"
+          style="background:#2d1f4a;border:1px solid #6d4fc9;"
+          data-text="${escapeAttr(body)}">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>コピーする</span>
+        </button>
+      `;
+    } else {
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <span class="tag">パターン ${label}</span>
+          <span class="char-count ${isOver ? 'over' : charCount > 120 ? 'near' : 'ok'}">${charCount} / ${FIXED_CONFIG.maxChars}字</span>
+        </div>
+        <p class="text-sm leading-relaxed whitespace-pre-wrap mb-3 select-all" style="color:#dde3f0;">${escapeHtml(body)}</p>
+        <button class="copy-btn w-full py-2.5 rounded-lg text-xs font-medium text-white flex items-center justify-center gap-1.5 transition-all"
+          style="background:${isOver ? '#7f1d1d' : '#1e3a5f'}; border:1px solid ${isOver ? '#991b1b' : '#2563eb'};"
+          data-text="${escapeAttr(body)}">
+          ${isOver
+            ? '<span>⚠️ 140字超過（要編集）</span>'
+            : `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+             <span>コピーする</span>`
+          }
+        </button>
+      `;
+    }
     container.appendChild(card);
   });
 
