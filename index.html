@@ -323,40 +323,29 @@ async function generatePost() {
 function buildPrompt(cfg, neta) {
   return `あなたはXの投稿文を作成するプロのSNSコピーライターです。
 
-【固定設定（変更不可）】
-・発信テーマ：${FIXED_CONFIG.theme}
-・トーン：${FIXED_CONFIG.tone}
-・ハッシュタグ：全パターン禁止（一切付けないこと）
+【絶対遵守ルール】
+1. ハッシュタグ（#記号を含む語）はどのパターンにも一切付けないこと。違反厳禁。
+2. 説明文・ラベル・前置き・後書きは不要。投稿文の本文のみ出力すること。
+3. 出力は必ず下記【出力形式】に従うこと。
+
+【発信テーマ】${FIXED_CONFIG.theme}
+【トーン】${FIXED_CONFIG.tone}
 
 【投稿タイプ・作成指示】
 ${cfg.template}
 
-【ネタ情報（ユーザー提供）】
+【ネタ情報】
 ${neta}
 
-【出力ルール】
-以下の3パターンを作成し、「---」で区切って出力してください。説明文・前置き・後書きは一切不要、投稿文のみ出力してください。
+【出力形式】
+必ず以下の区切り記号（---A--- / ---B--- / ---C---）をそのまま使い、各パターンの投稿文を出力すること。
 
-パターンA（140字以内）
-・必ず${FIXED_CONFIG.maxChars}字以内に収めること（超過厳禁）
-・絵文字を効果的に使用
-・テンポよく読めるシンプルな構成
-
----
-
-パターンB（140字以内）
-・必ず${FIXED_CONFIG.maxChars}字以内に収めること（超過厳禁）
-・パターンAとは切り口・表現を変えた別バージョン
-・絵文字を効果的に使用
-
----
-
-パターンC（文字数制限なし・インサイト型）
-・文字数制限なし（300〜500字程度が目安）
-・ネタの内容を深く掘り下げ、読者が「なるほど」「自分ごとだ」と感じるような独自の考察・視点を展開する
-・結論だけでなく「なぜそう思うか」「何が本質か」まで言語化する
-・読者に深く考えさせるインサイトを与えることが目的
-・絵文字は控えめに（文章の重みを保つため）`;
+---A---
+ここにパターンAの投稿文（必ず${FIXED_CONFIG.maxChars}字以内・絵文字使用可・テンポよいシンプルな構成）
+---B---
+ここにパターンBの投稿文（必ず${FIXED_CONFIG.maxChars}字以内・パターンAと異なる切り口・絵文字使用可）
+---C---
+ここにパターンCの投稿文（文字数制限なし・300〜500字目安・深い独自考察で読者にインサイトを与える・絵文字は控えめ）`;
 }
 
 async function callClaudeAPI(apiKey, prompt) {
@@ -387,13 +376,13 @@ async function callClaudeAPI(apiKey, prompt) {
 }
 
 function displayResults(text) {
-  // パターン分割
-  const patterns = text.split('---').map(p => p.trim()).filter(p => p.length > 0);
+  // ---A--- / ---B--- / ---C--- で分割し、各パターンの本文を取り出す
+  const raw = text.split(/---[ABC]---/).map(p => p.trim()).filter(p => p.length > 0);
   const container = document.getElementById('resultCards');
   container.innerHTML = '';
 
-  patterns.forEach((pattern, i) => {
-    // 「パターンX（...）」「パターンX」ラベルを取り除いて本文だけ抽出
+  raw.forEach((pattern, i) => {
+    // 念のため残存するラベル行を除去
     const body = pattern.replace(/^パターン[A-C]（[^）]*）\n?/u, '').replace(/^パターン[A-C]\n?/u, '').trim();
     const charCount = body.length;
     const isInsight = i === 2; // パターンC＝インサイト型（文字数制限なし）
