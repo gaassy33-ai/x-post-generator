@@ -31,6 +31,8 @@
     input[type="password"], input[type="text"] { background: #0f1117; border: 1.5px solid #2a2d3e; color: #e8eaf0; }
     input:focus { outline: none; border-color: #4f8ef7; }
     .tag { background: #1e2d4a; color: #7eb3ff; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 9999px; }
+    #trendSection { display: none; }
+    #trendSection.visible { display: block; }
   </style>
 </head>
 <body class="min-h-screen pb-20">
@@ -110,6 +112,16 @@
           <div class="text-xs text-gray-500">時事ネタ・ニュース</div>
         </button>
 
+        <button class="type-btn card-hover rounded-xl p-3 text-left col-span-2" data-type="trend">
+          <div class="flex items-center gap-3">
+            <div class="text-lg">🔥</div>
+            <div>
+              <div class="text-xs font-bold mb-0.5">トレンド乗っかり</div>
+              <div class="text-xs text-gray-500">バズ投稿を分析してペルソナで再構成</div>
+            </div>
+          </div>
+        </button>
+
       </div>
     </section>
 
@@ -130,6 +142,42 @@
         <div class="flex justify-end mt-1">
           <span id="netaCharCount" class="char-count ok">0 字</span>
         </div>
+      </div>
+    </section>
+
+    <!-- トレンド追加入力（trend type のみ表示） -->
+    <section id="trendSection">
+      <div class="card rounded-xl p-3 space-y-3">
+
+        <div>
+          <p class="text-xs text-gray-400 font-medium mb-1">🔍 STEP 2a　トレンドワード</p>
+          <div class="flex gap-2">
+            <input
+              id="trendInput"
+              type="text"
+              placeholder="例：103万円の壁、新NISA、Grok3"
+              class="flex-1 rounded-lg px-3 py-2 text-sm"
+            >
+            <button id="openXSearchBtn" class="btn-primary text-white text-xs font-medium px-3 py-2 rounded-lg whitespace-nowrap">
+              X検索を開く
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">※ 「話題」タブのバズ投稿を2〜3件コピーしてください</p>
+        </div>
+
+        <div>
+          <p class="text-xs text-gray-400 font-medium mb-1">📋 STEP 2b　バズ投稿の例（2〜3件貼り付け）</p>
+          <textarea
+            id="refInput"
+            rows="5"
+            placeholder="コピーしたバズ投稿をここに貼り付けてください。複数ある場合は空行で区切ってください。"
+            class="w-full rounded-lg px-3 py-2 text-sm"
+          ></textarea>
+          <div class="flex justify-end mt-1">
+            <span id="refCharCount" class="char-count ok">0 字</span>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -209,6 +257,11 @@ const TYPE_CONFIG = {
     template: `ニュース・時事ネタへの引用コメントとして投稿文を作成してください。
 構成：「ニュースへの反応 → 副業・投資・AI視点での自分の解釈や気づき」`,
   },
+  trend: {
+    label: '🔥 トレンド乗っかり',
+    hint: 'トレンドワードとバズ投稿の例を入力してください',
+    template: '', // buildTrendPrompt で組み立てるため不使用
+  },
 };
 
 // ===== 状態管理 =====
@@ -267,6 +320,17 @@ document.querySelectorAll('.type-btn').forEach(btn => {
     tag.textContent = cfg.label;
     tag.classList.remove('hidden');
 
+    // トレンドタイプ専用セクションの表示切り替え
+    const trendSection = document.getElementById('trendSection');
+    if (selectedType === 'trend') {
+      trendSection.classList.add('visible');
+      document.getElementById('netaHint').textContent = '（任意）追加メモがあれば入力してください（自分の実体験など）';
+      document.getElementById('netaInput').placeholder = '例）自分もこの件で○○な経験があった、など';
+    } else {
+      trendSection.classList.remove('visible');
+      document.getElementById('netaInput').placeholder = cfg.hint.replace('例）', '').split('「')[0] + '...';
+    }
+
     // 結果リセット
     document.getElementById('resultSection').classList.add('hidden');
     document.getElementById('errorMsg').classList.add('hidden');
@@ -280,6 +344,24 @@ document.getElementById('netaInput').addEventListener('input', function() {
   const el = document.getElementById('netaCharCount');
   el.textContent = `${len} 字`;
   el.className = `char-count ${len > 200 ? 'over' : len > 100 ? 'near' : 'ok'}`;
+});
+
+document.getElementById('refInput').addEventListener('input', function() {
+  const len = this.value.length;
+  const el = document.getElementById('refCharCount');
+  el.textContent = `${len} 字`;
+  el.className = `char-count ${len > 600 ? 'over' : len > 300 ? 'near' : 'ok'}`;
+});
+
+// ===== X検索を開く =====
+document.getElementById('openXSearchBtn').addEventListener('click', () => {
+  const word = document.getElementById('trendInput').value.trim();
+  if (!word) {
+    showToast('トレンドワードを入力してください');
+    return;
+  }
+  const url = `https://x.com/search?q=${encodeURIComponent(word)}&src=trend_click&f=top`;
+  window.open(url, '_blank', 'noopener,noreferrer');
 });
 
 // ===== ポスト生成 =====
@@ -308,7 +390,25 @@ async function generatePost() {
   document.getElementById('errorMsg').classList.add('hidden');
 
   const cfg = TYPE_CONFIG[selectedType];
-  const prompt = buildPrompt(cfg, neta);
+  let prompt;
+
+  if (selectedType === 'trend') {
+    const trendWord = document.getElementById('trendInput').value.trim();
+    const refPosts  = document.getElementById('refInput').value.trim();
+    if (!trendWord) {
+      setLoading(false);
+      showToast('トレンドワードを入力してください');
+      return;
+    }
+    if (!refPosts) {
+      setLoading(false);
+      showToast('バズ投稿の例を貼り付けてください');
+      return;
+    }
+    prompt = buildTrendPrompt(trendWord, refPosts, neta);
+  } else {
+    prompt = buildPrompt(cfg, neta);
+  }
 
   try {
     const result = await callClaudeAPI(apiKey, prompt);
@@ -369,6 +469,63 @@ ${neta}
 ここにパターンBの投稿文（必ず${FIXED_CONFIG.maxChars}字以内・パターンAと異なる切り口で・1行目はフック）
 ---C---
 ここにパターンCの投稿文（文字数制限なし・300〜500字目安・ペルソナの視点から深く掘り下げた考察・インサイト重視・1行目はフック）`;
+}
+
+function buildTrendPrompt(trendWord, refPosts, extraMemo) {
+  return `あなたは以下のペルソナになりきって、Xの投稿文を書いてください。
+
+【ペルソナ】
+・30代前半の男性会社員。通信セクター勤務の中間管理職
+・部下と上司の板挟みで日々消耗しながらも、AIや投資・副業で「会社依存」から脱出しようと試みている
+・文体は口語体。「〜だ」「〜だな」「〜した」「〜だと思う」など自然な男性口語
+・飾らず、等身大。完璧な人間ではなく、失敗や迷いも正直に書く
+・テンションは落ち着いている。過度な感嘆符や煽り文句は使わない
+・絵文字は1〜2個まで。なくてもよい
+
+【文体の禁止事項（AI感が出るため絶対使用禁止）】
+・「〜していきましょう」「〜していきたいと思います」
+・「〜することが大切です」「〜を心がけましょう」
+・「ぜひ参考にしてください」「一緒に頑張りましょう」
+・「〜なのではないでしょうか」（過剰な丁寧表現）
+・✅ を箇条書きの頭に使う（多用禁止）
+・自己啓発・意識高い系の言い回し全般
+
+【絶対遵守ルール】
+1. ハッシュタグ（#記号を含む語）はどのパターンにも一切付けないこと。
+2. 説明文・ラベル・前置き・後書きは不要。投稿文の本文のみ出力すること。
+3. 出力は必ず下記【出力形式】に従うこと。
+4. 参考投稿の文章をそのまま流用・コピーしないこと。構造・切り口・トーンを学習し、自分の言葉で書き直すこと。
+5. トレンドワードを無理やり複数回登場させないこと。自然な流れで1〜2回触れれば十分。
+
+【タスク】
+今バズっているトレンドワード「${trendWord}」について、以下の参考投稿（バズ投稿）を分析し、
+その投稿がなぜ伸びたかを理解した上で、同じ「構造・切り口・トーン」をペルソナの文体と視点で再構成した投稿文を作成してください。
+
+【分析の観点】
+参考投稿を読む際、以下の点を把握してから投稿を作成すること：
+・フックの型（意外性型／共感型／数字型／問いかけ型）
+・読者が「続きを読みたい」と感じる理由
+・感情の動かし方（共感・驚き・不安・安心など）
+・情報の展開パターン（問題提起→解決、事実→解釈、体験→教訓 など）
+・ペルソナが自然に使える切り口か（副業・投資・AI・中間管理職の視点に置き換えられるか）
+
+【参考投稿（バズ投稿の例）】
+${refPosts}
+${extraMemo ? `\n【追加メモ（自分の実体験など）】\n${extraMemo}\n` : ''}
+【フック文言のルール】
+全パターンの1行目は必ず読者が「続きを読みたい」と思うフック文言にすること。
+参考投稿のフックの型を参考にしつつ、ペルソナの言葉に置き換えること。
+パターンごとに異なるフックの型を使うこと。
+
+【出力形式】
+必ず以下の区切り記号（---A--- / ---B--- / ---C---）をそのまま使い、各パターンの投稿文を出力すること。
+
+---A---
+ここにパターンAの投稿文（必ず${FIXED_CONFIG.maxChars}字以内・参考投稿の構造を活かした短文型・ペルソナの口語体）
+---B---
+ここにパターンBの投稿文（必ず${FIXED_CONFIG.maxChars}字以内・参考投稿とは異なるフックの型を使った別角度バージョン）
+---C---
+ここにパターンCの投稿文（文字数制限なし・300〜400字目安・ペルソナの視点からトレンドの本質を掘り下げた考察型・インサイト重視）`;
 }
 
 async function callClaudeAPI(apiKey, prompt) {
