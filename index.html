@@ -360,7 +360,7 @@ document.getElementById('openXSearchBtn').addEventListener('click', () => {
     showToast('トレンドワードを入力してください');
     return;
   }
-  const url = `https://x.com/search?q=${encodeURIComponent(word)}&src=trend_click&f=top`;
+  const url = `https://x.com/search?q=${encodeURIComponent(word + ' min_faves:500')}&src=trend_click&f=top`;
   window.open(url, '_blank', 'noopener,noreferrer');
 });
 
