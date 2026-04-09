@@ -380,7 +380,7 @@ async function generatePost() {
     return;
   }
   const neta = document.getElementById('netaInput').value.trim();
-  if (!neta) {
+  if (!neta && selectedType !== 'trend') {
     showToast('ネタを入力してください');
     document.getElementById('netaInput').focus();
     return;
